@@ -1,10 +1,10 @@
 <template lang="pug">
 transition(name="fade")
-  .fixed.inset-0.z-50.flex.items-center.justify-center.p-4(v-if="modelValue")
-    .absolute.inset-0.backdrop-blur-sm(class="bg-slate-900/60" @click="closeable && $emit('update:modelValue', false)")
-    .relative.w-full.max-w-md.rounded-2xl.border.border-slate-200.bg-white.p-6.shadow-xl
-      h3.text-lg.font-semibold.text-slate-900(v-if="title") {{ title }}
-      .mt-3
+  div(class="fixed inset-0 z-50 flex items-center justify-center p-4" v-if="modelValue")
+    div(class="absolute inset-0 backdrop-blur-sm bg-slate-900/60" @click="closeable && $emit('update:modelValue', false)")
+    div(class="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl")
+      h3(class="text-lg font-semibold text-slate-900" v-if="title") {{ title }}
+      div(class="mt-3")
         slot
 </template>
 

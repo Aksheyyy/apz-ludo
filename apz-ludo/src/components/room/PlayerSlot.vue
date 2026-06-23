@@ -1,10 +1,10 @@
 <template lang="pug">
-.flex.items-center.gap-3.rounded-xl.border.p-3(:class="player ? 'border-slate-200 bg-white' : 'border-dashed border-slate-200 bg-slate-50'")
-  span.h-4.w-4.rounded-full(:class="player ? dotClass : 'bg-slate-200'")
+div(class="flex items-center gap-3 rounded-xl border p-3" :class="player ? 'border-slate-200 bg-white' : 'border-dashed border-slate-200 bg-slate-50'")
+  span(class="h-4 w-4 rounded-full" :class="player ? dotClass : 'bg-slate-200'")
   template(v-if="player")
-    span.text-sm.font-medium.text-slate-800 {{ player.username }}
-    span.ml-auto.text-xs.text-slate-400(v-if="isCreator") host
-  span.text-sm.text-slate-400(v-else) Waiting for player…
+    span(class="text-sm font-medium text-slate-800") {{ player.username }}
+    span(class="ml-auto text-xs text-slate-400" v-if="isCreator") host
+  span(class="text-sm text-slate-400" v-else) Waiting for player…
 </template>
 
 <script setup>

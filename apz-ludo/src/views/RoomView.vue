@@ -1,33 +1,33 @@
 <template lang="pug">
-.mx-auto.max-w-xl.px-4.py-12
+div(class="mx-auto max-w-xl px-4 py-12")
   BaseCard
-    .flex.items-start.justify-between
+    div(class="flex items-start justify-between")
       div
-        h1.text-xl.font-semibold.text-slate-900 Waiting room
-        p.mt-1.text-sm.text-slate-500 Room code
-          span.ml-1.font-mono.font-semibold.text-slate-800 {{ roomId }}
-      .text-right(v-if="showCountdown")
-        p.text-xs.text-slate-400 Expires in
-        p.font-mono.text-lg.font-semibold(:class="remaining < 60 ? 'text-rose-600' : 'text-slate-700'") {{ label }}
+        h1(class="text-xl font-semibold text-slate-900") Waiting room
+        p(class="mt-1 text-sm text-slate-500") Room code
+          span(class="ml-1 font-mono font-semibold text-slate-800") {{ roomId }}
+      div(class="text-right" v-if="showCountdown")
+        p(class="text-xs text-slate-400") Expires in
+        p(class="font-mono text-lg font-semibold" :class="remaining < 60 ? 'text-rose-600' : 'text-slate-700'") {{ label }}
 
-    .mt-6
-      p.mb-2.text-sm.font-medium.text-slate-700 Players ({{ players.length }}/4)
+    div(class="mt-6")
+      p(class="mb-2 text-sm font-medium text-slate-700") Players ({{ players.length }}/4)
       PlayerList(:players="players" :creatorId="room.current?.creatorId")
 
-    .mt-6(v-if="shareUrl")
-      p.mb-2.text-sm.font-medium.text-slate-700 Invite link
+    div(class="mt-6" v-if="shareUrl")
+      p(class="mb-2 text-sm font-medium text-slate-700") Invite link
       ShareLink(:url="shareUrl")
 
-    p.mt-4.text-sm.text-rose-600(v-if="error") {{ error }}
+    p(class="mt-4 text-sm text-rose-600" v-if="error") {{ error }}
 
-    .mt-6.flex.gap-3
+    div(class="mt-6 flex gap-3")
       BaseButton(variant="secondary" @click="leave") Leave
       BaseButton(
         v-if="room.isCreator"
         :disabled="players.length < 2"
         @click="start"
       ) {{ players.length < 2 ? 'Need 2+ players' : 'Start game' }}
-      p.self-center.text-sm.text-slate-400(v-else) Waiting for host to start…
+      p(class="self-center text-sm text-slate-400" v-else) Waiting for host to start…
 </template>
 
 <script setup>

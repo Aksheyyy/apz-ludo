@@ -1,16 +1,16 @@
 <template lang="pug">
-.flex.flex-col.items-center.gap-2
-  button.relative.flex.h-16.w-16.items-center.justify-center.rounded-2xl.bg-white.shadow-md.ring-1.ring-slate-200.transition(
+div(class="flex flex-col items-center gap-2")
+  button(class="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-md ring-1 ring-slate-200 transition"
     :class="{ 'animate-dice': rolling, 'opacity-40 cursor-not-allowed': !enabled, 'hover:shadow-lg cursor-pointer': enabled }"
     :disabled="!enabled"
     @click="$emit('roll')"
   )
     //- Pip faces
-    .grid.h-10.w-10.grid-cols-3.grid-rows-3(class="gap-0.5" v-if="value")
-      span.flex.items-center.justify-center(v-for="i in 9" :key="i")
-        span.h-2.w-2.rounded-full.bg-slate-800(v-if="pips.includes(i)")
-    span.text-xl.text-slate-300(v-else) 🎲
-  span.text-xs.font-medium.text-slate-500 {{ hint }}
+    div(class="grid h-10 w-10 grid-cols-3 grid-rows-3 gap-0.5" v-if="value")
+      span(class="flex items-center justify-center" v-for="i in 9" :key="i")
+        span(class="h-2 w-2 rounded-full bg-slate-800" v-if="pips.includes(i)")
+    span(class="text-xl text-slate-300" v-else) 🎲
+  span(class="text-xs font-medium text-slate-500") {{ hint }}
 </template>
 
 <script setup>

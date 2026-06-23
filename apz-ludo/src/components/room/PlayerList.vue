@@ -1,5 +1,5 @@
 <template lang="pug">
-.space-y-2
+div(class="space-y-2")
   PlayerSlot(v-for="i in maxPlayers" :key="i" :player="players[i - 1] || null" :creatorId="creatorId")
 </template>
 

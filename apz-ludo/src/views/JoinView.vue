@@ -1,10 +1,10 @@
 <template lang="pug">
-.mx-auto.max-w-md.px-4.py-24.text-center
+div(class="mx-auto max-w-md px-4 py-24 text-center")
   BaseCard
-    p.text-slate-600(v-if="!error") Joining room {{ roomId }}…
+    p(class="text-slate-600" v-if="!error") Joining room {{ roomId }}…
     template(v-else)
-      p.font-medium.text-rose-600 {{ error }}
-      BaseButton.mt-4(@click="$router.push('/lobby')") Back to lobby
+      p(class="font-medium text-rose-600") {{ error }}
+      BaseButton(class="mt-4" @click="$router.push('/lobby')") Back to lobby
 </template>
 
 <script setup>

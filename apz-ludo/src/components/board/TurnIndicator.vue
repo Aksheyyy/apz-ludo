@@ -1,7 +1,7 @@
 <template lang="pug">
-.flex.items-center.gap-2.rounded-full.border.border-slate-200.bg-white.px-3.shadow-sm(class="py-1.5")
-  span.h-3.w-3.rounded-full(:class="dotClass")
-  span.text-sm.font-medium.text-slate-700 {{ label }}
+div(class="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 shadow-sm py-1.5")
+  span(class="h-3 w-3 rounded-full" :class="dotClass")
+  span(class="text-sm font-medium text-slate-700") {{ label }}
 </template>
 
 <script setup>

@@ -1,5 +1,5 @@
 <template lang="pug">
-button.absolute.rounded-full.border-2.border-white.shadow-md.transition.duration-300(
+button(class="absolute rounded-full border-2 border-white shadow-md transition duration-300"
   :class="[colorClass, { 'ring-2 ring-offset-1 ring-slate-900 cursor-pointer animate-turn': movable, 'cursor-default': !movable, 'animate-capture': captured }]"
   :style="style"
   :disabled="!movable"

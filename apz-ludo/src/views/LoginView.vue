@@ -1,18 +1,18 @@
 <template lang="pug">
-.mx-auto.max-w-md.px-4.py-16
+div(class="mx-auto max-w-md px-4 py-16")
   BaseCard
-    h1.text-xl.font-semibold.text-slate-900 {{ isRegister ? 'Create your account' : 'Welcome back' }}
-    p.mt-1.text-sm.text-slate-500 {{ isRegister ? 'Pick a username to start playing.' : 'Sign in to play Ludo with friends.' }}
+    h1(class="text-xl font-semibold text-slate-900") {{ isRegister ? 'Create your account' : 'Welcome back' }}
+    p(class="mt-1 text-sm text-slate-500") {{ isRegister ? 'Pick a username to start playing.' : 'Sign in to play Ludo with friends.' }}
 
-    form.mt-6.space-y-4(@submit.prevent="submit")
+    form(class="mt-6 space-y-4" @submit.prevent="submit")
       BaseInput(v-model="username" label="Username" placeholder="yourname" autocomplete="username")
       BaseInput(v-model="password" label="Password" type="password" placeholder="••••••" autocomplete="current-password")
-      p.text-sm.text-rose-600(v-if="error") {{ error }}
-      BaseButton.w-full(type="submit" size="lg" :disabled="loading") {{ loading ? 'Please wait…' : (isRegister ? 'Create account' : 'Sign in') }}
+      p(class="text-sm text-rose-600" v-if="error") {{ error }}
+      BaseButton(class="w-full" type="submit" size="lg" :disabled="loading") {{ loading ? 'Please wait…' : (isRegister ? 'Create account' : 'Sign in') }}
 
-    .mt-4.text-center.text-sm.text-slate-500
+    div(class="mt-4 text-center text-sm text-slate-500")
       | {{ isRegister ? 'Already have an account?' : "Don't have an account?" }}
-      button.ml-1.font-medium.text-indigo-600(class="hover:text-indigo-700" @click="toggle") {{ isRegister ? 'Sign in' : 'Create one' }}
+      button(class="ml-1 font-medium text-indigo-600 hover:text-indigo-700" @click="toggle") {{ isRegister ? 'Sign in' : 'Create one' }}
 </template>
 
 <script setup>

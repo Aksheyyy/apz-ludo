@@ -1,6 +1,6 @@
 <template lang="pug">
-.flex.items-center.gap-2.rounded-xl.border.border-slate-200.bg-slate-50.p-2
-  input.flex-1.bg-transparent.px-2.text-sm.text-slate-600(class="focus:outline-none" :value="url" readonly)
+div(class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2")
+  input(class="flex-1 bg-transparent px-2 text-sm text-slate-600 focus:outline-none" :value="url" readonly)
   BaseButton(size="sm" variant="secondary" @click="copy") {{ copied ? 'Copied!' : 'Copy' }}
 </template>
 

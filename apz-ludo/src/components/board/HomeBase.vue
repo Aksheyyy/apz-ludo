@@ -1,7 +1,7 @@
 <template lang="pug">
-.flex.items-center.justify-center(:style="gridStyle" :class="bgClass")
+div(class="flex items-center justify-center" :style="gridStyle" :class="bgClass")
   //- White pad; tokens (rendered in the token layer) sit on top as the 4 dots.
-  .rounded-xl.bg-white(class="h-3/4 w-3/4")
+  div(class="rounded-xl bg-white h-3/4 w-3/4")
 </template>
 
 <script setup>

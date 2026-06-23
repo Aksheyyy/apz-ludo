@@ -1,17 +1,17 @@
 <template lang="pug">
-.mx-auto.max-w-3xl.px-4.py-8
+div(class="mx-auto max-w-3xl px-4 py-8")
   template(v-if="game.state")
-    .mb-4.flex.items-center.justify-between
-      .flex.items-center.gap-3
-        h1.text-lg.font-semibold.text-slate-900 Ludo
-        span.font-mono.text-sm.text-slate-400 {{ roomId }}
-      .flex.items-center.gap-3
+    div(class="mb-4 flex items-center justify-between")
+      div(class="flex items-center gap-3")
+        h1(class="text-lg font-semibold text-slate-900") Ludo
+        span(class="font-mono text-sm text-slate-400") {{ roomId }}
+      div(class="flex items-center gap-3")
         TurnIndicator(:color="game.currentColor" :isMine="game.isMyTurn" :name="currentName")
         BaseButton(variant="ghost" size="sm" @click="confirmLeave = true") Leave
 
-    p.mb-3.text-center.text-sm.text-amber-600(v-if="game.notice") {{ game.notice }}
+    p(class="mb-3 text-center text-sm text-amber-600" v-if="game.notice") {{ game.notice }}
 
-    .grid.gap-6.items-start(class="md:grid-cols-[3fr_1fr]")
+    div(class="grid gap-6 items-start md:grid-cols-[3fr_1fr]")
       LudoBoard(
         :players="game.state.players"
         :currentSeat="game.state.currentSeat"
@@ -22,17 +22,17 @@
         @move="move"
       )
 
-      .space-y-4
+      div(class="space-y-4")
         BaseCard(padding="p-4")
-          p.mb-3.text-xs.font-medium.uppercase.tracking-wide.text-slate-400 Players
-          .space-y-2
-            .flex.items-center.gap-2(v-for="p in game.state.players" :key="p.seat" :class="{ 'opacity-40': p.left }")
-              span.h-3.w-3.rounded-full(:class="dot(p.color)")
-              span.text-sm.font-medium.capitalize.text-slate-700 {{ p.color }}
-              span.text-xs.text-slate-400(v-if="p.left") (left)
-              span.ml-auto.text-xs.text-slate-400 {{ p.finished }}/4
+          p(class="mb-3 text-xs font-medium uppercase tracking-wide text-slate-400") Players
+          div(class="space-y-2")
+            div(class="flex items-center gap-2" v-for="p in game.state.players" :key="p.seat" :class="{ 'opacity-40': p.left }")
+              span(class="h-3 w-3 rounded-full" :class="dot(p.color)")
+              span(class="text-sm font-medium capitalize text-slate-700") {{ p.color }}
+              span(class="text-xs text-slate-400" v-if="p.left") (left)
+              span(class="ml-auto text-xs text-slate-400") {{ p.finished }}/4
 
-        .flex.justify-center
+        div(class="flex justify-center")
           DiceRoller(
             :value="game.state.lastDice"
             :enabled="game.isMyTurn && game.phase === 'rolling'"
@@ -40,17 +40,17 @@
             @roll="roll"
           )
 
-  p.py-24.text-center.text-slate-500(v-else) Loading game…
+  p(class="py-24 text-center text-slate-500" v-else) Loading game…
 
   //- Game over
   BaseModal(:modelValue="!!game.winner" title="Game over" :closeable="false")
-    p.text-slate-600 {{ winText }}
-    BaseButton.mt-4.w-full(@click="exit") Back to lobby
+    p(class="text-slate-600") {{ winText }}
+    BaseButton(class="mt-4 w-full" @click="exit") Back to lobby
 
   //- Leave confirm
   BaseModal(v-model="confirmLeave" title="Leave the game?")
-    p.text-slate-600 If you leave, you forfeit. The game continues for the others (or ends if you're the last two).
-    .mt-4.flex.gap-3
+    p(class="text-slate-600") If you leave, you forfeit. The game continues for the others (or ends if you're the last two).
+    div(class="mt-4 flex gap-3")
       BaseButton(variant="secondary" @click="confirmLeave = false") Cancel
       BaseButton(variant="danger" @click="leave") Leave
 </template>

@@ -1,5 +1,5 @@
 <template lang="pug">
-.rounded-2xl.border.border-slate-200.bg-white.shadow-sm(:class="padding")
+div(class="rounded-2xl border border-slate-200 bg-white shadow-sm" :class="padding")
   slot
 </template>
 

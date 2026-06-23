@@ -1,16 +1,16 @@
 <template lang="pug">
-.relative.mx-auto.aspect-square.w-full.max-w-xl.overflow-hidden.rounded-2xl.border.border-slate-300.bg-white.shadow-sm
+div(class="relative mx-auto aspect-square w-full max-w-xl overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm")
   //- Background grid: 4 corner yards + cross cells + center
-  .grid.h-full.w-full(style="grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr)")
+  div(class="grid h-full w-full" style="grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr)")
     HomeBase(v-for="(y, color) in YARDS" :key="color" :color="color" :row="y.row" :col="y.col")
     BoardCell(v-for="cell in crossCells" :key="`${cell.row}-${cell.col}`" :row="cell.row" :col="cell.col" :info="cell.info")
     //- Center pinwheel
-    .flex.items-center.justify-center(:style="centerStyle")
-      .rounded-md(class="h-3/4 w-3/4" style="background: conic-gradient(#e11d48 0deg 90deg, #059669 90deg 180deg, #0284c7 180deg 270deg, #d97706 270deg 360deg)")
+    div(class="flex items-center justify-center" :style="centerStyle")
+      div(class="rounded-md h-3/4 w-3/4" style="background: conic-gradient(#e11d48 0deg 90deg, #059669 90deg 180deg, #0284c7 180deg 270deg, #d97706 270deg 360deg)")
 
   //- Tokens layer
-  .pointer-events-none.absolute.inset-0
-    .pointer-events-auto.contents
+  div(class="pointer-events-none absolute inset-0")
+    div(class="pointer-events-auto contents")
       Token(
         v-for="t in tokens" :key="t.key"
         :color="t.color" :row="t.row" :col="t.col"
