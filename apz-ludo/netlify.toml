@@ -1,0 +1,10 @@
+[build]
+  base    = "apz-ludo"
+  command = "npm run build"
+  publish = "apz-ludo/dist"
+
+# SPA fallback so deep links like /join/:roomId resolve to index.html.
+[[redirects]]
+  from = "/*"
+  to   = "/index.html"
+  status = 200
