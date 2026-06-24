@@ -56,20 +56,21 @@ A small, real-time, online Ludo game for **you + up to 3 friends (4 players max)
                           └────────┼───────────────────┼──────────┘
                                    │                    │
                           ┌────────▼────────────────────▼──────────┐
-                          │     Render PostgreSQL (managed)         │
+                          │     Supabase PostgreSQL (managed)       │
                           │  users · rooms · room_players · games   │
                           └─────────────────────────────────────────┘
 
 Frontend host: Netlify   →   https://apz-ludo.netlify.app
 Backend host:  Render     →   https://apz-ludo-api.onrender.com
-Database host: Render PostgreSQL (private + external connection string)
+Database host: Supabase PostgreSQL (pooled + direct connection string)
 ```
 
 **Why this shape**
 
 | Decision | Choice | Reason |
 |---|---|---|
-| Live game state | In server memory (`Map`) | 4 players, a handful of rooms. No need for Redis. Snapshot to Postgres so a restart can recover an in-progress game. |
+| Live game state | In server memory (`Map`) | 4 players, a handful of rooms. No need for Redis. Snapshot to Supabase Postgres so a restart can recover an in-progress game. |
+| Database | Supabase managed Postgres | Free tier isn't auto-deleted (unlike Render's 90-day Postgres); generous limits, great dashboard + SQL editor. |
 | Transport | REST for auth/rooms, Socket.IO for gameplay | REST is simplest for request/response; Socket.IO for push. |
 | Dice / move validation | Server only | Anti-cheat requirement. Client never computes dice or legality. |
 | Room expiry | `expires_at` column + in-memory timer + periodic sweep | Survives restarts (sweep) and is instant in the happy path (timer). |
@@ -79,6 +80,10 @@ Database host: Render PostgreSQL (private + external connection string)
 > cold-start in ~30–60s. In-memory games are lost on sleep/restart, but the
 > Postgres snapshot lets you resume. For a hobby app this is acceptable. If you
 > want zero cold starts, use Render's cheapest paid instance.
+>
+> ⚠️ **Supabase free tier note:** a free project is **paused after ~7 days of
+> inactivity** (not deleted) — just un-pause it from the dashboard when you next
+> play, or hit it occasionally to keep it warm. Data is retained.
 
 ---
 
@@ -149,7 +154,7 @@ CREATE TABLE games (
   "phase": "rolling",            // "rolling" | "moving" | "finished"
   "currentSeat": 0,              // seat_order to act
   "lastDice": null,              // number 1..6 or null
-  "rollsThisTurn": 0,            // consecutive 6s handling
+  "consecutiveSixes": 0,         // 3-in-a-row forfeits the turn
   "players": [
     {
       "seat": 0, "userId": 12, "color": "red",
@@ -524,19 +529,24 @@ bcrypt cost 10. No email, no reset flow — it's a friend group; reset by asking
 
 **Expiry implementation (two layers, both simple):**
 
-1. **In-memory timer** — on room create, `setTimeout(5 min)`. When it fires, if
-   the room is still `waiting`, mark `expired`, emit `room:expired`, delete the
-   row. Cleared if the game starts.
-2. **Periodic sweeper** (`jobs/roomSweeper.js`) — every 60s:
+1. **In-memory timer** (`jobs/roomExpiry.js`) — on room create, `setTimeout(5
+   min)` → `expireIfUnjoined(roomId)`. Deletes the room only if it's still
+   `waiting` **and nobody but the creator is in it**. The timer is **cancelled as
+   soon as a 2nd player joins** (the room is no longer "unjoined") and on game
+   start. (Phase 4 adds the `room:expired` socket broadcast here.)
+2. **Periodic sweeper** (`jobs/roomSweeper.js`) — every 60s, the restart-safe
+   backstop for timers lost to a server restart:
    ```sql
-   DELETE FROM rooms
-   WHERE status = 'waiting' AND expires_at < now();
+   DELETE FROM rooms r
+   WHERE r.status = 'waiting'
+     AND r.expires_at < now()
+     AND (SELECT count(*) FROM room_players p WHERE p.room_id = r.id) <= 1;
    ```
-   This is the safety net that survives a server restart (when the in-memory
-   timer is gone). Belt and suspenders, both trivial.
+   Belt and suspenders, both trivial.
 
-> Once a game starts (`status = 'playing'`), `expires_at` is ignored — only
-> *unjoined / unstarted* rooms expire, exactly as required.
+> Matches the requirement literally — *"if nobody joins a newly created room
+> within 5 minutes"*. A room with ≥2 players never auto-expires; it lives until
+> the game starts or everyone leaves (leaving empties it → row deleted).
 
 **Color/seat assignment:** seats fill in order `red(0) → green(1) → yellow(2) →
 blue(3)`. Creator always takes `red / seat 0`. The `UNIQUE(room_id, color)` and
@@ -596,36 +606,52 @@ export function nextTurn(state) { /* advance currentSeat, reset dice/phase */ }
 
 ---
 
-## 11. PostgreSQL on Render — Setup Guide
+## 11. PostgreSQL on Supabase — Setup Guide
 
 > You create the database **before** the web service so you have a
 > `DATABASE_URL` to give the backend.
 
-1. **Sign in** at <https://dashboard.render.com> (GitHub login is easiest).
-2. Click **New +** → **PostgreSQL**.
+1. **Sign in** at <https://supabase.com/dashboard> (GitHub login is easiest).
+2. Click **New project**.
 3. Fill in:
-   - **Name:** `apz-ludo-db`
-   - **Database:** `apz_ludo` · **User:** `apz_ludo_user` (auto is fine)
-   - **Region:** pick the one nearest you (and use the *same* region for the web
-     service to keep them on the private network).
-   - **Plan:** **Free** is enough for 4 players. (Note: Render's free Postgres
-     is deleted after ~90 days — fine for a hobby project; back up the seed/
-     migrations, which you have in git.)
-4. Click **Create Database**. Wait ~1 min until status is **Available**.
-5. Open the database page → **Connections** / **Info**. Note these:
-   - **Internal Database URL** — use this for the backend *if it's hosted on
-     Render in the same region* (faster, no egress).
-   - **External Database URL** — use this from your laptop / DBeaver. Looks like:
-     ```
-     postgresql://apz_ludo_user:PASSWORD@dpg-xxxx.oregon-postgres.render.com/apz_ludo
-     ```
-6. Render external connections **require SSL**. In the backend `pg` config:
+   - **Organization:** your personal org.
+   - **Name:** `apz-ludo`
+   - **Database Password:** generate a strong one and **save it** — this is the
+     password in your connection string (you can't see it again later; you can
+     only reset it).
+   - **Region:** pick the one nearest you *and* nearest your Render service to
+     minimise latency.
+   - **Plan:** **Free** is plenty for 4 players (and it is **not** auto-deleted —
+     it only pauses after ~7 days idle; un-pause from the dashboard).
+4. Click **Create new project** and wait ~2 min for provisioning.
+5. Get your connection strings: **Project Settings → Database → Connection
+   string** (or the **Connect** button in the top bar). You'll see three modes —
+   choose based on the consumer:
+
+   | Mode | Port | Host pattern | Use it for |
+   |---|---|---|---|
+   | **Direct connection** | `5432` | `db.<ref>.supabase.co` | DBeaver, migrations, the Node server *if* it has a stable IPv6/IPv4 route |
+   | **Session pooler** | `5432` | `aws-0-<region>.pooler.supabase.com` | Long-lived backends (recommended for the Render server) — IPv4-friendly |
+   | **Transaction pooler** | `6543` | `aws-0-<region>.pooler.supabase.com` | Serverless / lambda only — *not* needed here |
+
+   A session-pooler URL looks like:
+   ```
+   postgresql://postgres.<project-ref>:YOUR_PASSWORD@aws-0-<region>.pooler.supabase.com:5432/postgres
+   ```
+
+6. **For the Render backend, use the Session Pooler URL** as `DATABASE_URL`.
+   Render's network is IPv4-only and Supabase's *direct* host is IPv6-only on the
+   free tier, so the **pooler is the reliable choice**. Supabase requires SSL:
    ```js
    new Pool({
      connectionString: process.env.DATABASE_URL,
-     ssl: { rejectUnauthorized: false }   // Render uses a managed cert
+     ssl: { rejectUnauthorized: false }   // Supabase uses a managed cert
    });
    ```
+
+> 💡 You can also run SQL straight from the Supabase dashboard via **SQL Editor**
+> — handy for ad-hoc queries without any client. (You've already created the
+> tables this way — see §13.)
 
 ---
 
@@ -633,20 +659,22 @@ export function nextTurn(state) { /* advance currentSeat, reset dice/phase */ }
 
 1. Install **DBeaver Community** (<https://dbeaver.io>).
 2. **Database → New Database Connection → PostgreSQL**.
-3. Easiest path — paste the URL: click **"Connect by → URL"** and paste the
-   **External Database URL** from Render. Or fill fields manually from that URL:
-   | Field | Value (from External URL) |
+3. Easiest path — paste the URL: click **"Connect by → URL"** and paste your
+   Supabase connection string. From DBeaver on your laptop, the **Direct
+   connection** string (`db.<ref>.supabase.co:5432`) is simplest if your network
+   has IPv6; otherwise use the **Session pooler** host. Or fill fields manually:
+   | Field | Value (from connection string) |
    |---|---|
-   | Host | `dpg-xxxx.oregon-postgres.render.com` |
+   | Host | `db.<project-ref>.supabase.co` *(or `aws-0-<region>.pooler.supabase.com`)* |
    | Port | `5432` |
-   | Database | `apz_ludo` |
-   | Username | `apz_ludo_user` |
-   | Password | (from the URL) |
-4. **SSL tab** → check **Use SSL**, set **SSL mode = `require`**. (Render needs
-   SSL for external connections; no client cert required.)
+   | Database | `postgres` |
+   | Username | `postgres` *(or `postgres.<project-ref>` for the pooler)* |
+   | Password | your saved database password |
+4. **SSL tab** → check **Use SSL**, set **SSL mode = `require`**. (Supabase
+   requires SSL; no client cert needed.)
 5. Click **Test Connection** → **Finish**.
-6. Browse under **apz_ludo → Schemas → public → Tables**. Run the migration SQL
-   here directly if you prefer GUI over the Node runner.
+6. Browse under **postgres → Schemas → public → Tables**. You can run migration
+   SQL here, or in the Supabase **SQL Editor**, instead of the Node runner.
 
 ---
 
@@ -655,6 +683,25 @@ export function nextTurn(state) { /* advance currentSeat, reset dice/phase */ }
 Kept deliberately simple: **plain `.sql` files** + a ~30-line runner. No
 migration framework needed for a project this size. The runner tracks applied
 files in a `_migrations` table so re-running is safe.
+
+> ✅ **You've already run the table-creation SQL** in the Supabase SQL Editor, so
+> the schema below already exists in your database. Two options going forward:
+> 1. **Keep using the SQL Editor** for any future schema changes (simplest — you
+>    can skip the Node runner entirely), **or**
+> 2. **Adopt the runner** for repeatability. Since the tables exist, first mark
+>    `001_init.sql` as already applied so it isn't re-run:
+>    ```sql
+>    CREATE TABLE IF NOT EXISTS _migrations (
+>      name TEXT PRIMARY KEY, run_at TIMESTAMPTZ NOT NULL DEFAULT now());
+>    INSERT INTO _migrations(name) VALUES ('001_init.sql')
+>      ON CONFLICT DO NOTHING;
+>    ```
+>    Then `npm run migrate` will only apply *new* files (e.g. `002_indexes.sql`).
+>    Use `CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS` in your SQL
+>    to stay idempotent regardless.
+
+The schema files below remain the source of truth — keep them in git so the DB
+can be rebuilt from scratch if the Supabase project is ever recreated.
 
 ### `server/src/db/migrations/001_init.sql`
 ```sql
@@ -781,19 +828,19 @@ Run with: `node src/db/seed.js` (which just executes `seeds/seed.sql`).
    - **Runtime:** Node
    - **Build Command:** `npm install`
    - **Start Command:** `npm start`  (which runs `node src/index.js`)
-   - **Region:** same as the database.
+   - **Region:** pick the one nearest your Supabase region to keep DB latency low.
    - **Plan:** Free (sleeps when idle) or cheapest paid (no cold start).
 3. **Environment** → add variables:
    | Key | Value |
    |---|---|
-   | `DATABASE_URL` | the **Internal** Database URL from Render |
+   | `DATABASE_URL` | the Supabase **Session Pooler** URL (port 5432, `...pooler.supabase.com`) — IPv4-friendly, works from Render |
    | `JWT_SECRET` | a long random string (`openssl rand -hex 32`) |
    | `CLIENT_ORIGIN` | `https://apz-ludo.netlify.app` |
    | `NODE_VERSION` | `20` |
-4. **First deploy:** after it goes live, run migrations once. Either:
-   - add a one-off **Render Shell** command `npm run migrate && npm run seed`, or
-   - temporarily set Start Command to `npm run migrate && npm start`, deploy,
-     then revert.
+4. **First deploy:** your schema already exists in Supabase (created via the SQL
+   Editor), so no migration is required to go live. If you adopt the Node runner
+   later (§13), run `npm run migrate` from a one-off **Render Shell**. Seed data
+   (§13) can likewise be pasted into the Supabase **SQL Editor** directly.
 5. **CORS / Socket.IO origin** — in `app.js` and the Socket.IO server, allow
    `process.env.CLIENT_ORIGIN`:
    ```js
@@ -856,8 +903,8 @@ Build in vertical slices; you have a playable loop by Phase 4.
 - `apz-ludo/`: `npm create vite@latest` (Vue), add `pinia vue-router socket.io-client axios`, Tailwind (`tailwindcss postcss autoprefixer`), and Pug (`pug @vue/compiler-sfc`). Configure `vite.config.js`, `tailwind.config.js`.
 - Commit the folder structure from §3.
 
-**Phase 1 — Database (½ day)**
-- Create Render Postgres (§11). Write `001_init.sql`, `002_indexes.sql`, `migrate.js`, `seed.sql`. Run migrate + seed. Verify in DBeaver (§12).
+**Phase 1 — Database (½ day)** ✅ *DB provisioned + tables created on Supabase*
+- Create Supabase project (§11). Tables already created via SQL Editor. Optionally add `001_init.sql`, `002_indexes.sql`, `migrate.js`, `seed.sql` to git for repeatability (§13), and load seed data. Verify in DBeaver (§12).
 
 **Phase 2 — Auth (1 day)**
 - Backend: `token.service` (bcrypt + JWT), `auth.controller/routes`, `requireAuth` middleware.
