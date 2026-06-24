@@ -47,6 +47,11 @@ div(class="mx-auto max-w-3xl px-4 py-8")
     p(class="text-slate-600") {{ winText }}
     BaseButton(class="mt-4 w-full" @click="exit") Back to lobby
 
+  //- Room closed due to inactivity
+  BaseModal(:modelValue="!!game.aborted && !game.winner" title="Room closed" :closeable="false")
+    p(class="text-slate-600") This game was closed after 2 minutes with no moves.
+    BaseButton(class="mt-4 w-full" @click="exit") Back to lobby
+
   //- Leave confirm
   BaseModal(v-model="confirmLeave" title="Leave the game?")
     p(class="text-slate-600") If you leave, you forfeit. The game continues for the others (or ends if you're the last two).
@@ -56,7 +61,7 @@ div(class="mx-auto max-w-3xl px-4 py-8")
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useGameStore } from '@/stores/game';
 import { useAuthStore } from '@/stores/auth';
@@ -107,9 +112,17 @@ function exit() {
   router.push('/lobby');
 }
 
+function resubscribe() {
+  getSocket()?.emit('room:join', { roomId });
+}
 onMounted(() => {
   game.bindSocket();
-  // Re-subscribe so a refresh mid-game re-receives the board.
-  getSocket()?.emit('room:join', { roomId });
+  game.setRoom(roomId);
+  // Re-subscribe so a refresh / reconnect mid-game re-receives the board.
+  resubscribe();
+  getSocket()?.on('connect', resubscribe);
+});
+onUnmounted(() => {
+  getSocket()?.off('connect', resubscribe);
 });
 </script>

@@ -20,4 +20,6 @@ export const env = {
   clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
   port: Number(process.env.PORT) || 3000,
   isProd: process.env.NODE_ENV === 'production',
+  // Delete a playing room if no move is made for this long (default 2 min).
+  gameInactivityMs: Number(process.env.GAME_INACTIVITY_MS) || 2 * 60 * 1000,
 };

@@ -1,7 +1,7 @@
 <template lang="pug">
 div(class="border border-slate-200" :style="gridStyle" :class="cellClass")
   span(class="flex h-full w-full items-center justify-center text-slate-300" v-if="info.isSafe && !info.isStart")
-    span(class="text-[10px]") ★
+    span(class="text-xl") ★
 </template>
 
 <script setup>

@@ -2,12 +2,29 @@ import * as rooms from '../services/room.service.js';
 import * as GameManager from '../game/GameManager.js';
 import * as Engine from '../game/LudoEngine.js';
 import { broadcast } from './io.js';
+import { touchGame, clearGameTimer } from '../jobs/gameInactivity.js';
 
 function emitError(socket, err) {
   socket.emit('error', {
     code: err.code || 'ERROR',
     message: err.message || 'Something went wrong.',
   });
+}
+
+/** Restart the inactivity countdown for a live game (called on every action). */
+function bumpActivity(roomId) {
+  touchGame(roomId, abandonIdleGame);
+}
+
+/** No move for the inactivity window → close and delete the playing room. */
+async function abandonIdleGame(roomId) {
+  const game = GameManager.getGame(roomId);
+  if (!game || game.phase === 'finished') return;
+  GameManager.removeGame(roomId);
+  clearGameTimer(roomId);
+  broadcast(roomId, 'game:abandoned', { roomId, reason: 'inactivity' });
+  await rooms.deleteRoom(roomId);
+  console.log(`Room ${roomId} deleted (inactive).`);
 }
 
 /** Returns the seat if it's this user's turn, else null. */
@@ -58,6 +75,7 @@ async function leaveRoomOrGame(io, roomId, userId) {
     const w = remaining[0];
     game.phase = 'finished';
     game.winnerSeat = w.seat;
+    clearGameTimer(roomId);
     await rooms.finishGame(roomId);
     await GameManager.snapshot(roomId, w.userId);
     broadcast(roomId, 'game:state', { state: game });
@@ -127,6 +145,7 @@ export function registerGameHandlers(io, socket) {
       const game = await GameManager.createGame(roomId, state.players);
       broadcast(roomId, 'room:state', state);
       broadcast(roomId, 'game:started', { state: game });
+      bumpActivity(roomId); // begin the idle countdown
     } catch (err) {
       emitError(socket, err);
     }
@@ -144,6 +163,7 @@ export function registerGameHandlers(io, socket) {
       if (game.phase !== 'rolling')
         return emitError(socket, { code: 'BAD_PHASE', message: 'You have already rolled.' });
 
+      bumpActivity(roomId); // a roll counts as activity
       const dice = Engine.rollDice();
       game.lastDice = dice;
       game.consecutiveSixes = dice === 6 ? game.consecutiveSixes + 1 : 0;
@@ -188,6 +208,7 @@ export function registerGameHandlers(io, socket) {
       if (!moves.includes(tokenIndex))
         return emitError(socket, { code: 'INVALID_MOVE', message: 'That move is not allowed.' });
 
+      bumpActivity(roomId); // a move counts as activity
       const result = Engine.applyMove(game, seat, tokenIndex, dice);
 
       let turnAdvanced = false;
@@ -216,6 +237,7 @@ export function registerGameHandlers(io, socket) {
       }
 
       if (result.won !== null) {
+        clearGameTimer(roomId);
         await rooms.finishGame(roomId);
         await GameManager.snapshot(roomId, winnerUserId);
         broadcast(roomId, 'game:over', { winnerSeat: seat, winnerUserId });

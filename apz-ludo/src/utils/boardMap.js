@@ -34,6 +34,20 @@ export const START_INDEX = { red: 0, green: 13, yellow: 26, blue: 39 };
 export const SAFE_INDICES = new Set([0, 8, 13, 21, 26, 34, 39, 47]);
 export const CENTER = [7, 7];
 
+const MAIN_TRACK_LEN = 52;
+
+// Encoded position ↔ per-color linear progress (mirrors server/src/game/board.js),
+// used to compute the intermediate cells a token hops through when animating.
+export function toProgress(color, pos) {
+  if (pos >= 100 && pos < 106) return 51 + (pos - 100); // home column
+  return (((pos - START_INDEX[color]) % MAIN_TRACK_LEN) + MAIN_TRACK_LEN) % MAIN_TRACK_LEN;
+}
+export function fromProgress(color, progress) {
+  if (progress <= 50) return (START_INDEX[color] + progress) % MAIN_TRACK_LEN;
+  if (progress < 57) return 100 + (progress - 51);
+  return 999;
+}
+
 // Where the 4 tokens sit while in base, per color (a centered 2×2 inside each
 // 6×6 corner yard). Fractional grid coords place them evenly on the white pad.
 export const YARD_SLOTS = {

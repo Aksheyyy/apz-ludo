@@ -68,9 +68,12 @@ async function leave() {
   router.push('/lobby');
 }
 
-// Navigate everyone into the game when it starts.
-function onGameStarted() {
+function goToGame() {
   router.push({ name: 'game', params: { id: roomId } });
+}
+// Re-subscribe after a socket reconnect (transient drop / 8s grace).
+function onReconnect() {
+  room.subscribe(roomId);
 }
 
 onMounted(async () => {
@@ -82,19 +85,27 @@ onMounted(async () => {
     error.value = e.message;
   }
   room.subscribe(roomId);
-  getSocket()?.on('game:started', onGameStarted);
-  if (room.current?.expiresAt) startCountdown(room.current.expiresAt);
+  const socket = getSocket();
+  socket?.on('game:started', goToGame);
+  socket?.on('connect', onReconnect);
+  // If the game is already running (e.g. we arrived late), go straight in.
+  if (room.current?.status === 'playing') goToGame();
+  else if (room.current?.expiresAt) startCountdown(room.current.expiresAt);
 });
 
 watch(
   () => room.current?.expiresAt,
   (v) => v && showCountdown.value && startCountdown(v)
 );
+// Robustness: navigate on status flip too, in case game:started was missed.
+watch(() => room.current?.status, (s) => s === 'playing' && goToGame());
 watch(() => room.expired, (v) => v && (error.value = 'This room expired.'));
 watch(() => room.closed, (v) => v && router.push('/lobby'));
 
 onUnmounted(() => {
   stopCountdown();
-  getSocket()?.off('game:started', onGameStarted);
+  const socket = getSocket();
+  socket?.off('game:started', goToGame);
+  socket?.off('connect', onReconnect);
 });
 </script>

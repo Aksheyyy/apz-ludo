@@ -21,6 +21,15 @@
   animation: turn-pulse 1.8s ease-out infinite;
 }
 
+/* Movable token gently bobs to invite a tap */
+@keyframes token-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14%); }
+}
+.animate-bob {
+  animation: token-bob 0.9s ease-in-out infinite;
+}
+
 /* Token capture flash */
 @keyframes capture-flash {
   0% { transform: scale(1); opacity: 1; }

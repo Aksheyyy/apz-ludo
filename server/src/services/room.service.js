@@ -231,10 +231,29 @@ export async function startGame(roomId, userId) {
     if (room.creator_id !== userId)
       throw conflict('NOT_CREATOR', 'Only the room creator can start the game.');
 
-    const count = (
-      await client.query('SELECT count(*)::int AS c FROM room_players WHERE room_id = $1', [roomId])
-    ).rows[0].c;
-    if (count < 2) throw badRequest('NOT_ENOUGH_PLAYERS', 'Need at least 2 players to start.');
+    const players = (
+      await client.query(
+        'SELECT user_id, seat_order FROM room_players WHERE room_id = $1 ORDER BY seat_order',
+        [roomId]
+      )
+    ).rows;
+    if (players.length < 2) throw badRequest('NOT_ENOUGH_PLAYERS', 'Need at least 2 players to start.');
+
+    // With exactly 2 players, seat them on the diagonal: host = blue, joiner = green.
+    // (3–4 players keep their join-order colours: red, green, yellow, blue.)
+    if (players.length === 2) {
+      const host = players.find((p) => p.user_id === room.creator_id) || players[0];
+      const other = players.find((p) => p.user_id !== host.user_id);
+      const set = (uid, color) =>
+        client.query('UPDATE room_players SET color = $1 WHERE room_id = $2 AND user_id = $3', [
+          color, roomId, uid,
+        ]);
+      // Park `other` on a free colour first so neither target (blue/green) collides
+      // with a current colour mid-update (unique(room_id, colour) constraint).
+      await set(other.user_id, 'yellow');
+      await set(host.user_id, 'blue');
+      await set(other.user_id, 'green');
+    }
 
     await client.query("UPDATE rooms SET status = 'playing', started_at = now() WHERE id = $1", [
       roomId,
@@ -248,6 +267,11 @@ export async function startGame(roomId, userId) {
 /** Marks a room finished when a game ends. */
 export async function finishGame(roomId) {
   await query("UPDATE rooms SET status = 'finished', finished_at = now() WHERE id = $1", [roomId]);
+}
+
+/** Hard-deletes a room (cascades to players + game). Used for idle cleanup. */
+export async function deleteRoom(roomId) {
+  await query('DELETE FROM rooms WHERE id = $1', [roomId]);
 }
 
 /** Whether a user is seated in a room. */

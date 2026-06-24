@@ -10,6 +10,8 @@ export const useGameStore = defineStore('game', () => {
   const lastCapture = ref(null); // for capture animation
   const rolling = ref(false); // local dice animation flag
   const notice = ref(''); // transient message (e.g. "green left the game")
+  const aborted = ref(null); // { reason } when the room was closed (e.g. inactivity)
+  const roomId = ref(null); // current room, for auto-move
 
   const mySeat = computed(() => {
     const auth = useAuthStore();
@@ -31,7 +33,7 @@ export const useGameStore = defineStore('game', () => {
     if (!socket) return;
     for (const ev of [
       'game:started', 'game:state', 'dice:rolled', 'moves:available',
-      'turn:changed', 'token:captured', 'game:over', 'player:left',
+      'turn:changed', 'token:captured', 'game:over', 'player:left', 'game:abandoned',
     ]) {
       socket.off(ev);
     }
@@ -55,6 +57,12 @@ export const useGameStore = defineStore('game', () => {
       // The server moved us to the 'moving' phase but only told us (not opponents,
       // for anti-cheat). Reflect it locally so moveToken() is allowed.
       if (state.value) state.value.phase = 'moving';
+      // If there's exactly one legal move, play it automatically (after a beat so
+      // the dice value is visible).
+      if (tokenIndexes.length === 1 && roomId.value) {
+        const only = tokenIndexes[0];
+        setTimeout(() => moveToken(roomId.value, only), 650);
+      }
     });
     socket.on('turn:changed', ({ currentSeat }) => {
       if (state.value) {
@@ -70,6 +78,9 @@ export const useGameStore = defineStore('game', () => {
     });
     socket.on('player:left', ({ color }) => {
       notice.value = `${color} left the game`;
+    });
+    socket.on('game:abandoned', (payload) => {
+      aborted.value = payload || { reason: 'inactivity' };
     });
     socket.on('game:over', (payload) => {
       winner.value = payload;
@@ -90,8 +101,11 @@ export const useGameStore = defineStore('game', () => {
     if (!availableMoves.value.includes(tokenIndex)) return;
     getSocket()?.emit('token:move', { roomId, tokenIndex });
   }
-  function leaveGame(roomId) {
-    getSocket()?.emit('game:leave', { roomId });
+  function leaveGame(rid) {
+    getSocket()?.emit('game:leave', { roomId: rid });
+  }
+  function setRoom(rid) {
+    roomId.value = rid;
   }
 
   function reset() {
@@ -101,11 +115,12 @@ export const useGameStore = defineStore('game', () => {
     lastCapture.value = null;
     rolling.value = false;
     notice.value = '';
+    aborted.value = null;
   }
 
   return {
-    state, availableMoves, winner, lastCapture, rolling, notice,
+    state, availableMoves, winner, lastCapture, rolling, notice, aborted, roomId,
     mySeat, isMyTurn, phase, currentColor,
-    bindSocket, startGame, rollDice, moveToken, leaveGame, reset,
+    bindSocket, startGame, rollDice, moveToken, leaveGame, setRoom, reset,
   };
 });
