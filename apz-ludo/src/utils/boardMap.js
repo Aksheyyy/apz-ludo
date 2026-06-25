@@ -22,12 +22,15 @@ export const MAIN_PATH = [
   [8, 0], [7, 0], [6, 0],                         // 49-51
 ];
 
-// Each color's 6-cell home column (encoded 100..105), running toward center.
+// Each color's 5-cell home column (encoded 100..104), running toward center.
+// The 6th cell each direction previously used ([7,6],[6,7],[7,8],[8,7]) falls
+// inside the 3×3 center pinwheel area and is excluded — tokens there looked
+// like they were already home.
 export const HOME_PATHS = {
-  red: [[7, 1], [7, 2], [7, 3], [7, 4], [7, 5], [7, 6]],
-  green: [[1, 7], [2, 7], [3, 7], [4, 7], [5, 7], [6, 7]],
-  yellow: [[7, 13], [7, 12], [7, 11], [7, 10], [7, 9], [7, 8]],
-  blue: [[13, 7], [12, 7], [11, 7], [10, 7], [9, 7], [8, 7]],
+  red: [[7, 1], [7, 2], [7, 3], [7, 4], [7, 5]],
+  green: [[1, 7], [2, 7], [3, 7], [4, 7], [5, 7]],
+  yellow: [[7, 13], [7, 12], [7, 11], [7, 10], [7, 9]],
+  blue: [[13, 7], [12, 7], [11, 7], [10, 7], [9, 7]],
 };
 
 export const START_INDEX = { red: 0, green: 13, yellow: 26, blue: 39 };
@@ -39,13 +42,13 @@ const MAIN_TRACK_LEN = 52;
 // Encoded position ↔ per-color linear progress (mirrors server/src/game/board.js),
 // used to compute the intermediate cells a token hops through when animating.
 export function toProgress(color, pos) {
-  if (pos >= 100 && pos < 106) return 51 + (pos - 100); // home column
+  if (pos >= 100 && pos < 105) return 51 + (pos - 100); // home column (5 cells: 100–104)
   return (((pos - START_INDEX[color]) % MAIN_TRACK_LEN) + MAIN_TRACK_LEN) % MAIN_TRACK_LEN;
 }
 export function fromProgress(color, progress) {
   if (progress <= 50) return (START_INDEX[color] + progress) % MAIN_TRACK_LEN;
-  if (progress < 57) return 100 + (progress - 51);
-  return 999;
+  if (progress < 56) return 100 + (progress - 51); // 51–55 → encoded 100–104
+  return 999; // progress ≥ 56 → FINISHED
 }
 
 // Where the 4 tokens sit while in base, per color (a centered 2×2 inside each
