@@ -1,5 +1,5 @@
 <template lang="pug">
-div(class="relative mx-auto aspect-square w-full max-w-xl overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm")
+div(class="relative mx-auto aspect-square w-full max-w-xl overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm" :style="boardStyle")
   //- Background grid: 4 corner yards + cross cells + center
   div(class="grid h-full w-full" style="grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr)")
     HomeBase(v-for="(y, color) in YARDS" :key="color" :color="color" :row="y.row" :col="y.col")
@@ -17,6 +17,7 @@ div(class="relative mx-auto aspect-square w-full max-w-xl overflow-hidden rounde
         :color="t.color" :row="t.row" :col="t.col"
         :stackIndex="t.stackIndex" :stackCount="t.stackCount"
         :movable="t.movable" :captured="t.captured" :stepMs="STEP_MS"
+        :counterRotate="boardRotation"
         @move="$emit('move', t.tokenIndex)"
       )
 </template>
@@ -37,6 +38,17 @@ const props = defineProps({
   phase: { type: String, default: null },
 });
 defineEmits(['move']);
+
+// Rotate board so the current player's home yard always appears at bottom-left.
+// Layout: red=TL, green=TR, yellow=BR, blue=BL.
+// rotate(90°)  CW: TL→TR, TR→BR, BR→BL → yellow reaches BL
+// rotate(180°): TR→BL → green reaches BL
+// rotate(270°): TL→BL → red reaches BL
+// rotate(0°): blue is already at BL
+const BOARD_ROTATION = { red: 270, green: 180, yellow: 90, blue: 0 };
+const myColor = computed(() => props.players.find(p => p.seat === props.mySeat)?.color ?? null);
+const boardRotation = computed(() => BOARD_ROTATION[myColor.value] ?? 0);
+const boardStyle = computed(() => boardRotation.value ? { transform: `rotate(${boardRotation.value}deg)` } : {});
 
 const STEP_MS = 150;
 const centerStyle = { gridRow: '7 / span 3', gridColumn: '7 / span 3' };
@@ -68,7 +80,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function stepsBetween(color, fromPos, toPos) {
   if (fromPos === -1 || toPos === -1) return [toPos]; // exit base / captured → single move
   const fromP = toProgress(color, fromPos);
-  const toP = toPos === 999 ? 57 : toProgress(color, toPos);
+  const toP = toPos === 999 ? 56 : toProgress(color, toPos);
   if (toP <= fromP) return [toPos];
   const out = [];
   for (let p = fromP + 1; p <= toP; p++) out.push(fromProgress(color, p));

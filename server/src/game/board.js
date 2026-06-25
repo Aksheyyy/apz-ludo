@@ -4,19 +4,19 @@
  * Token position encoding (matches games.state JSONB):
  *   -1        → in base (home yard)
  *   0..51     → absolute cell on the 52-cell main track
- *   100..105  → the player's 6-cell home column
+ *   100..104  → the player's 5-cell home column
  *   999       → finished (reached center)
  *
  * "Progress" is a per-color linear measure of distance travelled:
  *   0..50  → on the main track   (51 cells; a color never steps on its own
  *            home-entry cell, so absolute-cell ↔ progress is 1:1 per color)
- *   51..56 → home column         (→ encoded 100..105)
- *   57     → center / finished   (→ encoded 999)
+ *   51..55 → home column         (→ encoded 100..104; 5 cells)
+ *   56     → center / finished   (→ encoded 999)
  */
 export const MAIN_TRACK_LEN = 52;
-export const HOME_COLUMN_LEN = 6;
-export const LAST_MAIN_PROGRESS = 50; // progress 0..50 are main-track cells
-export const CENTER_PROGRESS = 57; // exact progress that means "finished"
+export const HOME_COLUMN_LEN = 5;      // 5 visible cells (encoded 100–104); was 6
+export const LAST_MAIN_PROGRESS = 50;  // progress 0..50 are main-track cells
+export const CENTER_PROGRESS = 56;     // progress 56 → FINISHED (was 57)
 
 export const HOME_BASE = -1;
 export const FINISHED = 999;
@@ -33,7 +33,7 @@ export const isSafe = (pos) => isMainCell(pos) && SAFE_CELLS.has(pos);
 
 /** Absolute encoded position → that color's linear progress (0..56). */
 export function toProgress(color, pos) {
-  if (isHomeColumn(pos)) return LAST_MAIN_PROGRESS + 1 + (pos - 100); // 51..56
+  if (isHomeColumn(pos)) return LAST_MAIN_PROGRESS + 1 + (pos - 100); // 51..55
   // main-track cell
   return (((pos - START_OFFSET[color]) % MAIN_TRACK_LEN) + MAIN_TRACK_LEN) % MAIN_TRACK_LEN;
 }
@@ -44,7 +44,7 @@ export function fromProgress(color, progress) {
     return (START_OFFSET[color] + progress) % MAIN_TRACK_LEN; // 0..51
   }
   if (progress < CENTER_PROGRESS) {
-    return 100 + (progress - (LAST_MAIN_PROGRESS + 1)); // 51..56 → 100..105
+    return 100 + (progress - (LAST_MAIN_PROGRESS + 1)); // 51..55 → 100..104
   }
-  return FINISHED; // progress === 57
+  return FINISHED; // progress >= 56
 }
