@@ -34,7 +34,7 @@ div(class="mx-auto max-w-3xl px-4 py-8")
 
         div(class="flex flex-col items-center gap-2")
           DiceRoller(
-            :value="game.state.lastDice"
+            :value="game.lastDice"
             :enabled="game.isMyTurn && game.phase === 'rolling'"
             :rolling="game.rolling"
             :activeColor="currentHex"
@@ -105,7 +105,14 @@ watch(
       timerSecs.value = Math.max(0, timerSecs.value - 1);
     }, 1000);
 
-    onCleanup(() => clearInterval(ticker));
+    // Auto-act when the timer expires so the turn is never permanently stuck.
+    const deadline = setTimeout(() => {
+      if (game.phase === 'rolling' && game.isMyTurn) game.rollDice(roomId);
+      else if (game.phase === 'moving' && game.isMyTurn && game.availableMoves.length > 0)
+        game.moveToken(roomId, game.availableMoves[0]);
+    }, TURN_SECS * 1000);
+
+    onCleanup(() => { clearInterval(ticker); clearTimeout(deadline); });
   }
 );
 

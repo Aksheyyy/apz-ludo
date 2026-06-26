@@ -81,7 +81,14 @@ for (const [color, cells] of Object.entries(HOME_PATHS)) {
 /** Grid [row, col] for one token, given its color, encoded position and index. */
 export function cellOf(color, pos, tokenIndex) {
   if (pos === -1) return YARD_SLOTS[color][tokenIndex];
-  if (pos === 999) return CENTER;
+  if (pos === 999) {
+    const delta = 0.65;
+    if (color === 'red') return [7, 7 - delta];
+    if (color === 'green') return [7 - delta, 7];
+    if (color === 'yellow') return [7, 7 + delta];
+    if (color === 'blue') return [7 + delta, 7];
+    return CENTER;
+  }
   if (pos >= 100) return HOME_PATHS[color][pos - 100];
   return MAIN_PATH[pos];
 }

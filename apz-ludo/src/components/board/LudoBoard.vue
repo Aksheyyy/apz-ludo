@@ -17,7 +17,7 @@ div(class="relative mx-auto aspect-square w-full max-w-xl overflow-hidden rounde
         :color="t.color" :row="t.row" :col="t.col"
         :stackIndex="t.stackIndex" :stackCount="t.stackCount"
         :movable="t.movable" :captured="t.captured" :stepMs="STEP_MS"
-        :counterRotate="boardRotation"
+        :counterRotate="boardRotation" :finished="t.finished"
         @move="$emit('move', t.tokenIndex)"
       )
 </template>
@@ -142,7 +142,16 @@ const tokens = computed(() => {
         props.phase === 'moving' &&
         p.seat === props.mySeat &&
         props.availableMoves.includes(tokenIndex);
-      list.push({ key, color: p.color, tokenIndex, row, col, movable, captured: !!captureAnim[key] });
+      list.push({
+        key,
+        color: p.color,
+        tokenIndex,
+        row,
+        col,
+        movable,
+        captured: !!captureAnim[key],
+        finished: shown === 999
+      });
     });
   }
   const byCell = {};

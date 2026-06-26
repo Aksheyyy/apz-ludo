@@ -33,6 +33,7 @@ const props = defineProps({
   stepMs: { type: Number, default: 150 },
   // Counter-rotate the SVG by the board rotation so pins always point upward.
   counterRotate: { type: Number, default: 0 },
+  finished: { type: Boolean, default: false },
 });
 defineEmits(['move']);
 
@@ -49,9 +50,9 @@ const colorText = computed(
 // When several tokens share a cell, lay them out in a small cluster (as a
 // fraction of one cell) instead of piling them on the same spot. Returns
 // [dx, dy] offsets in cell-fractions.
-function clusterOffset(index, count) {
+function clusterOffset(index, count, finished = false) {
   if (count <= 1) return [0, 0];
-  const s = 0.24; // spread, as a fraction of a cell
+  const s = finished ? 0.14 : 0.24; // spread, as a fraction of a cell
   if (count === 2) return index === 0 ? [-s, 0] : [s, 0];
   // 3 or 4 tokens → 2×2 grid
   const grid = [[-s, -s], [s, -s], [-s, s], [s, s]];
@@ -63,9 +64,11 @@ function clusterOffset(index, count) {
 const style = computed(() => {
   const unit = 100 / 15;
   const stacked = props.stackCount > 1;
-  const size = stacked ? 54 : 84; // shrink when sharing a cell
+  const size = props.finished
+    ? (stacked ? 40 : 64)
+    : (stacked ? 54 : 84);
   const pad = (100 - size) / 2;
-  const [dx, dy] = clusterOffset(props.stackIndex, props.stackCount);
+  const [dx, dy] = clusterOffset(props.stackIndex, props.stackCount, props.finished);
   return {
     left: `calc(${props.col * unit}% + ${pad / 15}% + ${dx * unit}%)`,
     top: `calc(${props.row * unit}% + ${pad / 15}% + ${dy * unit}%)`,

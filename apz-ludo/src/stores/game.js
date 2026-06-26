@@ -9,6 +9,7 @@ export const useGameStore = defineStore('game', () => {
   const winner = ref(null); // { winnerSeat, winnerUserId, reason? }
   const lastCapture = ref(null); // for capture animation
   const rolling = ref(false); // local dice animation flag
+  const lastDice = ref(null); // display value — set by dice:rolled, never wiped by game:state
   const notice = ref(''); // transient message (e.g. "green left the game")
   const aborted = ref(null); // { reason } when the room was closed (e.g. inactivity)
   const roomId = ref(null); // current room, for auto-move
@@ -51,10 +52,13 @@ export const useGameStore = defineStore('game', () => {
     socket.on('game:state', ({ state: s }) => {
       state.value = s;
       availableMoves.value = []; // cleared until next roll
-      rolling.value = false;
+      // Do NOT touch rolling or lastDice here — dice:rolled owns the animation
+      // lifecycle. Clearing rolling early (before ROLL_MIN_MS) is the main cause
+      // of the dice value not being shown after a roll.
     });
     socket.on('dice:rolled', ({ value }) => {
       if (state.value) state.value.lastDice = value;
+      lastDice.value = value; // stable display ref — not overwritten by game:state
       // Hold the rolling animation until the minimum duration has elapsed, then
       // reveal the value. This is the single place that ends a roll animation.
       const wait = Math.max(0, ROLL_MIN_MS - (Date.now() - rollStartedAt));
@@ -87,6 +91,9 @@ export const useGameStore = defineStore('game', () => {
       // animation, so a no-move roll still gets its full tumble.
       setTimeout(() => {
         // Guard: only clear if the turn hasn't changed again in the meantime.
+        // Note: we do NOT clear lastDice.value here — rollDice() handles that
+        // when the new player clicks Roll, avoiding the race where a fast roll
+        // within this 2s window would wipe the new dice value.
         if (state.value && state.value.currentSeat === currentSeat) {
           state.value.lastDice = null;
         }
@@ -113,6 +120,7 @@ export const useGameStore = defineStore('game', () => {
   function rollDice(roomId) {
     if (!isMyTurn.value || phase.value !== 'rolling') return;
     rolling.value = true;
+    lastDice.value = null; // clear previous value now; dice:rolled will set the new one
     rollStartedAt = Date.now();
     getSocket()?.emit('dice:roll', { roomId });
   }
@@ -134,12 +142,13 @@ export const useGameStore = defineStore('game', () => {
     winner.value = null;
     lastCapture.value = null;
     rolling.value = false;
+    lastDice.value = null;
     notice.value = '';
     aborted.value = null;
   }
 
   return {
-    state, availableMoves, winner, lastCapture, rolling, notice, aborted, roomId,
+    state, availableMoves, winner, lastCapture, rolling, lastDice, notice, aborted, roomId,
     mySeat, isMyTurn, phase, currentColor,
     bindSocket, startGame, rollDice, moveToken, leaveGame, setRoom, reset,
   };

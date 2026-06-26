@@ -117,7 +117,19 @@ export function registerGameHandlers(io, socket) {
       socket.emit('room:state', state);
       // If a game is already running, hand the late/reconnecting socket the board.
       const game = GameManager.getGame(roomId);
-      if (game) socket.emit('game:state', { state: game });
+      if (game) {
+        socket.emit('game:state', { state: game });
+        // If the reconnecting player was mid-move (their turn, phase='moving'), re-send
+        // the available moves — the client clears availableMoves on every game:state, so
+        // without this the player would be stuck with an empty move set after a refresh.
+        if (game.phase === 'moving') {
+          const cp = game.players.find((pl) => pl.seat === game.currentSeat);
+          if (cp && cp.userId === user.id) {
+            const moves = Engine.legalMoves(game, game.currentSeat, game.lastDice);
+            socket.emit('moves:available', { seat: game.currentSeat, tokenIndexes: moves });
+          }
+        }
+      }
     } catch (err) {
       emitError(socket, err);
     }
